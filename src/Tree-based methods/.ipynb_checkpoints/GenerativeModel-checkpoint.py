@@ -20,7 +20,6 @@ class TrainSatisfactionSimulator:
         self.overcrowding = None
         self.data = self.generate_data(n_customers)
         self.df = pd.DataFrame(self.data, columns=self.features_names)
-    
     def generate_independent_vars(self, n_customers : int):
         prices = np.arange(1, 5)
         p_prices = np.random.normal(2.5, 1,size=len(prices))
@@ -221,4 +220,4 @@ class TrainSatisfactionSimulator:
         
 if __name__ == "__main__":
     gen = ComplexDependentSatisfaction(20)
-    print(gen.data)
+    print(gen.df)
