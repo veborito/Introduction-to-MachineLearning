@@ -3,8 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
-# TODO : change logic for computing de satisfaction. Best to take a score like more than 10 or something like this.
-
+#TODO : 
+# maybe add cleanliness as a variable influencing satisfaction
+# i think it's irrelevant since cleanliness level in switzerland is high
+#    
 
 # Base class with continuous variables (may change)
 
@@ -12,48 +14,96 @@ class TrainSatisfactionSimulator:
     def __init__(self, n_customers : int):
         self.n_customers = n_customers
         self.satisfaction = np.zeros(n_customers)
-        self.features_names = np.array(["Price", "Punctuality","Duration", "Frequency", "Overcrwoding", "Satisfaction"])
-        self.price = None
-        self.punctuality = None
+        self.features_names = np.array(["Age", "Gender", "Income", "Remote Working Days", "Has Car",
+                                        "Price", "Punctuality","Duration", 
+                                        "Frequency", "Overcrowding", "Satisfaction"])
+        self.price = np.zeros(n_customers)
+        self.punctuality = np.random.choice([1, 2, 3, 4, 5], p=[0.03, 0.07, 0.1, 0.3, 0.5], size=n_customers) # 5 globalement très ponctuel, 1 globalement très en retard
         self.duration = None
         self.frequency = None
-        self.overcrowding = None
+        self.overcrowding = np.zeros(n_customers)
+        self.age = np.random.choice(np.arange(15, 80), size=n_customers)
+        self.gender = np.random.choice(['M', 'F'], size=n_customers) # Male, female or other
+        self.income = np.zeros(n_customers) # 0 to 1'000'000
+        self.remote_working_days = np.random.choice(5, size=n_customers) # 0 to 5 per week
+        self.has_car = np.array([np.random.choice(['yes', 'no']) if self.age[i] >= 18 
+                                 else 'no' for i in range(n_customers)]) # Yes or No
         self.data = self.generate_data(n_customers)
         self.df = pd.DataFrame(self.data, columns=self.features_names)
-    
-    def generate_independent_vars(self, n_customers : int):
-        prices = np.arange(1, 5)
-        p_prices = np.random.normal(2.5, 1,size=len(prices))
-        p_prices /= np.sum(p_prices)
-        self.price = np.random.choice(prices, p=p_prices, size=n_customers)
         
-        self.punctuality = np.random.choice([1, 2, 3, 4, 5], p=[0.03, 0.07, 0.1, 0.3, 0.5], size=n_customers) # 5 globalement très ponctuel, 1 globalement très en retard
-        
+    def generate_vars(self, n_customers : int):
+        # generate duration
         duration_table = np.arange(1, 5)
         len_dur = len(duration_table)
         p_duration = np.random.normal(2.5, 1, size=len_dur) # moyenne par jour
         p_duration /= np.sum(p_duration)
         self.duration = np.random.choice(duration_table, p=p_duration, size=n_customers)
-        
+
+        # generate income
+        incomes = np.arange(0, 500000, 1000)
+        p_income = np.random.normal(85702, 2,size=len(incomes))
+        p_income /= np.sum(p_income)
+        for i in range(n_customers):
+            income = np.random.choice(incomes, p=p_income)
+            if self.age[i] > 35 and income <= 100000:
+                income += 10000
+            if self.gender[i] == 'F':
+                income -= income * 0.18
+            self.income[i] = income
+
+        # generate price
+        prices = np.arange(1, 5)
+        len_p = len(prices)
+        p_prices = np.random.normal(2.5, 1,size=len_p)
+        p_prices /= np.sum(p_prices)
+        p_prices_under25 = np.random.exponential(size=len_p)
+        p_prices_under25 /= np.sum(p_prices_under25)
+        p_prices_high_income = np.random.power(5, len_p)
+        p_prices_high_income /= np.sum(p_prices_high_income)
+        for i in range(n_customers):
+            if self.income[i] > 100000:
+                self.price[i] = np.random.choice(prices, p=p_prices_high_income)
+            else:
+                if self.age[i] < 25:
+                    self.price[i] = np.random.choice(prices, p=p_prices_under25)
+                else:
+                    self.price[i] = np.random.choice(prices, p=p_prices)
+            if self.duration[i] > 3 and self.price[i] <= 4:
+                self.price[i] += 1
+        # frequency       
         freq_table = np.arange(1, 5)
         len_freq = len(freq_table)
         p_freq = np.random.normal(2, 1, size=len_freq)
         p_freq /= np.sum(p_freq)
-        self.frequency = np.random.choice(freq_table, p=p_freq, size=n_customers) # par an (entre 1 et 260)
         
-        self.overcrowding = np.random.choice([1, 2, 3, 4, 5], size=n_customers)
+        self.frequency = np.random.choice(freq_table, p=p_freq, size=n_customers) # par an (entre 1 et 260)
+        # overcrowding and frequency
+        for i in range(n_customers):
+            # frequency
+            if self.remote_working_days[i] > 1 and self.frequency[i] <= 4:
+                self.frequency[i] += 1
+            if self.has_car[i] == 'yes' and self.frequency[i] > 1:
+                self.frequency[i] -= 1
+            # overcrowding
+            if self.punctuality[i] < 3:
+                self.overcrowding[i] = np.random.choice([3, 4, 5])
+            else:
+                self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
+            if self.price[i] >= 4 and self.overcrowding[i] > 1:
+                self.overcrowding[i] -= 1
         
     def generate_dependent_var(self, n_customers : int):
         pass
     
     def generate_data(self, n_customers):
-        self.generate_independent_vars(n_customers)
+        self.generate_vars(n_customers)
         self.generate_dependent_var(n_customers)
-        return np.array([self.price.astype(int), self.punctuality.astype(int), self.duration.astype(int), 
-                             self.frequency.astype(int), self.overcrowding.astype(int), self.satisfaction.astype(int)]).T
+        return np.array([self.age.astype(int), self.gender, self.income.astype(int), self.remote_working_days.astype(int), self.has_car,
+                         self.price.astype(int), self.punctuality.astype(int), self.duration.astype(int), 
+                         self.frequency.astype(int), self.overcrowding.astype(int), self.satisfaction.astype(int)]).T
+
 
 # Independent Satisfaction
-
 class IndependentSatisfaction(TrainSatisfactionSimulator):
     def __init__(self, n_customers):
         super().__init__(n_customers)
@@ -221,4 +271,4 @@ class TrainSatisfactionSimulator:
         
 if __name__ == "__main__":
     gen = ComplexDependentSatisfaction(20)
-    print(gen.data)
+    print(gen.df)
