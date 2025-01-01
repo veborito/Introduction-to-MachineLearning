@@ -18,7 +18,9 @@ class TrainSatisfactionSimulator:
                                         "Price", "Punctuality","Duration", 
                                         "Frequency", "Overcrowding", "Satisfaction"])
         self.price = np.zeros(n_customers)
-        self.punctuality = np.random.choice([1, 2, 3, 4, 5], p=[0.03, 0.07, 0.1, 0.3, 0.5], size=n_customers) # 5 globalement très ponctuel, 1 globalement très en retard
+        self.punctuality = np.random.choice([1, 2, 3, 4, 5], 
+                                            p=[0.03, 0.07, 0.1, 0.3, 0.5], 
+                                            size=n_customers) # 5 globalement très ponctuel, 1 globalement très en retard
         self.duration = None
         self.frequency = None
         self.overcrowding = np.zeros(n_customers)
@@ -53,23 +55,10 @@ class TrainSatisfactionSimulator:
 
         # generate price
         prices = np.arange(1, 5)
-        len_p = len(prices)
-        p_prices = np.random.normal(2.5, 1,size=len_p)
+        prices = np.arange(1, 5)
+        p_prices = np.random.normal(2.5, 1,size=len(prices))
         p_prices /= np.sum(p_prices)
-        p_prices_under25 = np.random.exponential(size=len_p)
-        p_prices_under25 /= np.sum(p_prices_under25)
-        p_prices_high_income = np.random.power(5, len_p)
-        p_prices_high_income /= np.sum(p_prices_high_income)
-        for i in range(n_customers):
-            if self.income[i] > 100000:
-                self.price[i] = np.random.choice(prices, p=p_prices_high_income)
-            else:
-                if self.age[i] < 25:
-                    self.price[i] = np.random.choice(prices, p=p_prices_under25)
-                else:
-                    self.price[i] = np.random.choice(prices, p=p_prices)
-            if self.duration[i] > 3 and self.price[i] <= 4:
-                self.price[i] += 1
+        self.price = np.random.choice(prices, p=p_prices, size=n_customers)
         # frequency       
         freq_table = np.arange(1, 5)
         len_freq = len(freq_table)
@@ -78,20 +67,8 @@ class TrainSatisfactionSimulator:
         
         self.frequency = np.random.choice(freq_table, p=p_freq, size=n_customers) # par an (entre 1 et 260)
         # overcrowding and frequency
-        for i in range(n_customers):
-            # frequency
-            if self.remote_working_days[i] > 1 and self.frequency[i] <= 4:
-                self.frequency[i] += 1
-            if self.has_car[i] == 'yes' and self.frequency[i] > 1:
-                self.frequency[i] -= 1
-            # overcrowding
-            if self.punctuality[i] < 3:
-                self.overcrowding[i] = np.random.choice([3, 4, 5])
-            else:
-                self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
-            if self.price[i] >= 4 and self.overcrowding[i] > 1:
-                self.overcrowding[i] -= 1
-        
+        self.overcrowding = np.random.choice([1, 2, 3, 4, 5], size=n_customers)
+          
     def generate_dependent_var(self, n_customers : int):
         pass
     
@@ -134,6 +111,43 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
     def __init__(self, n_customers):
         super().__init__(n_customers)
         
+    def generate_vars(self, n_customers : int):
+        super().generate_vars(n_customers)
+        # generate price
+        prices = np.arange(1, 5)
+        len_p = len(prices)
+        p_prices = np.random.normal(2.5, 1,size=len_p)
+        p_prices /= np.sum(p_prices)
+        p_prices_under25 = np.random.exponential(size=len_p)
+        p_prices_under25 /= np.sum(p_prices_under25)
+        p_prices_high_income = np.random.power(5, len_p)
+        p_prices_high_income /= np.sum(p_prices_high_income)
+        for i in range(n_customers):
+            if self.income[i] > 100000:
+                self.price[i] = np.random.choice(prices, p=p_prices_high_income)
+            else:
+                if self.age[i] < 25:
+                    self.price[i] = np.random.choice(prices, p=p_prices_under25)
+                else:
+                    self.price[i] = np.random.choice(prices, p=p_prices)
+            if self.duration[i] > 3 and self.price[i] <= 4:
+                self.price[i] += 1
+       
+        # overcrowding and frequency
+        for i in range(n_customers):
+            # frequency
+            if self.remote_working_days[i] > 1 and self.frequency[i] <= 4:
+                self.frequency[i] += 1
+            if self.has_car[i] == 'yes' and self.frequency[i] > 1:
+                self.frequency[i] -= 1
+            # overcrowding
+            if self.punctuality[i] < 3:
+                self.overcrowding[i] = np.random.choice([3, 4, 5])
+            else:
+                self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
+            if self.price[i] >= 4 and self.overcrowding[i] > 1:
+                self.overcrowding[i] -= 1
+   
     def generate_dependent_var(self, n_customers):
         data = np.array([self.price, self.punctuality, self.duration, 
                              self.frequency, self.overcrowding]).T     
@@ -195,80 +209,9 @@ class PondDependentSatisfaction(TrainSatisfactionSimulator):
         self.satisfaction = np.where(weighted_sum > 0.5, 0, 1)  # Utilise un seuil de 0.5 après normalisation
         return
 
-# model avec des variables catégoriques 
 
-class TrainSatisfactionSimulator:
-    def __init__(self, n_customers):
-        self.n_customers = n_customers
-        self.price = None
-        self.punctuality = None
-        self.duration = None
-        self.frequency = None
-        self.overcrowding = None
-        self.satisfaction = np.zeros(n_customers)  # Satisfaction binaire (1 ou 0)
-        self.data_matrix = None  # Matrice pour stocker les données complètes
-        
-        self.generate_independent_vars()
-        self.generate_satisfaction()
-        self.create_data_matrix()
 
-    def generate_independent_vars(self):
-        """
-        Génère les valeurs pour price, punctuality, duration, frequency et overcrowding.
-        Chaque variable suit une distribution normale entre 1 et 5.
-        """
-        mean, std_dev = 3, 1  # Moyenne centrée sur 3 pour rester dans [1,5]
-
-        # Génération des variables indépendantes en suivant une distribution normale
-        self.price = np.clip(np.round(np.random.normal(mean, std_dev, self.n_customers)), 1, 5)
-        self.punctuality = np.clip(np.round(np.random.normal(mean, std_dev, self.n_customers)), 1, 5)
-        self.duration = np.clip(np.round(np.random.normal(mean, std_dev, self.n_customers)), 1, 5)
-        self.frequency = np.clip(np.round(np.random.normal(mean, std_dev, self.n_customers)), 1, 5)
-        self.overcrowding = np.clip(np.round(np.random.normal(mean, std_dev, self.n_customers)), 1, 5)
-
-    def generate_satisfaction(self):
-        """
-        Calcule la satisfaction binaire (1 ou 0) en fonction des variables indépendantes
-        pondérées par leur facteur d'importance.
-        """
-        # Facteurs d'importance
-        i_price = 0.2
-        i_punctuality = 0.3
-        i_duration = 0.1
-        i_frequency = 0.2
-        i_overcrowding = 0.2
-
-        # Crée un tableau de données et applique une normalisation
-        data = np.array([self.price, self.punctuality, self.duration, 
-                         self.frequency, self.overcrowding]).T
-        scaler = MinMaxScaler()
-        data = scaler.fit_transform(data)  # Met à l'échelle entre [0, 1]
-
-        # Applique les facteurs d'importance pour chaque variable
-        weighted_sum = (i_price * data[:, 0] +
-                        i_punctuality * data[:, 1] +
-                        i_duration * data[:, 2] +
-                        i_frequency * data[:, 3] +
-                        i_overcrowding * data[:, 4])
-
-        # Calcule la satisfaction : 0 si la somme pondérée > 0.5, sinon 1
-        self.satisfaction = np.where(weighted_sum > 0.5, 0, 1)  # Utilise un seuil de 0.5 après normalisation
-
-    def create_data_matrix(self):
-        """
-        Crée une matrice de données combinant toutes les variables indépendantes et la satisfaction.
-        """
-        # Combine les variables et la satisfaction dans une matrice
-        self.data_matrix = np.column_stack((self.price, self.punctuality, self.duration,
-                                            self.frequency, self.overcrowding, self.satisfaction))
-    
-    def display_data_matrix(self):
-        """
-        Affiche la matrice des données pour chaque client.
-        """
-        print("Data Matrix (price, punctuality, duration, frequency, overcrowding, satisfaction):")
-        print(self.data_matrix)
-        
+# Test       
 if __name__ == "__main__":
     gen = ComplexDependentSatisfaction(20)
     print(gen.df)
