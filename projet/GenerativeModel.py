@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
 #TODO : 
-# maybe add cleanliness as a variable influencing satisfaction
-# i think it's irrelevant since cleanliness level in switzerland is high
-#    
+# Faire une simulation sans le revenu
 
 # Base class with continuous variables (may change)
 
@@ -156,9 +154,9 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
         i_freq = 0.05
         i_punct = 0.9
         i_overcrow = 0.8
-
+        
         n_features = data.shape[1]
-        uniform = 1 / n_features
+        uniform = 1 / n_features # here uniform does not mean that they all have same probability.
         prices = self.price / n_features * uniform
         punctuality = self.punctuality / n_features * uniform
         duration = self.duration / n_features * uniform
@@ -174,6 +172,47 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
             else:
                 self.satisfaction[i] = 0
         return
+    
+    
+# Simulation sans revenu
+
+class NoIncomeDependentSatisfaction(ComplexDependentSatisfaction):
+    """Simulation Class without income"""
+    
+    def __init__(self, n_customers):
+        super(TrainSatisfactionSimulator).__init__(n_customers)
+        
+    def generate_vars(self, n_customers : int):
+        super(TrainSatisfactionSimulator).generate_vars(n_customers)
+        # generate price
+        prices = np.arange(1, 5)
+        prices = np.arange(1, 5)
+        p_prices = np.random.normal(2.5, 1,size=len(prices))
+        p_prices /= np.sum(p_prices)
+        self.price = np.random.choice(prices, p=p_prices, size=n_customers) 
+       
+        # overcrowding and frequency
+        for i in range(n_customers):
+            # frequency
+            if self.remote_working_days[i] > 1 and self.frequency[i] <= 4:
+                self.frequency[i] += 1
+            if self.has_car[i] == 'yes' and self.frequency[i] > 1:
+                self.frequency[i] -= 1
+            # overcrowding
+            if self.punctuality[i] < 3:
+                self.overcrowding[i] = np.random.choice([3, 4, 5])
+            else:
+                self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
+            if self.price[i] >= 4 and self.overcrowding[i] > 1:
+                self.overcrowding[i] -= 1
+    
+    def generate_data(self, n_customers):
+        self.generate_vars(n_customers)
+        super().generate_dependent_var(n_customers)
+        return np.array([self.age.astype(int), self.gender, self.remote_working_days.astype(int), self.has_car,
+                         self.price.astype(int), self.punctuality.astype(int), self.duration.astype(int), 
+                         self.frequency.astype(int), self.overcrowding.astype(int), self.satisfaction.astype(int)]).T
+
 
 # Satisfaction depend de la Moyenne pondérée 
 class PondDependentSatisfaction(TrainSatisfactionSimulator):
