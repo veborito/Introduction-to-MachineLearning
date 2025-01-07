@@ -15,13 +15,16 @@ class TrainSatisfactionSimulator:
         self.features_names = np.array(["Age", "Gender", "Income", "Remote Working Days", "Has Car",
                                         "Price", "Punctuality","Duration", 
                                         "Frequency", "Overcrowding", "Satisfaction"])
-        self.price = np.zeros(n_customers)
-        self.punctuality = np.random.choice([1, 2, 3, 4, 5], 
-                                            p=[0.03, 0.07, 0.1, 0.3, 0.5], 
+        self.table = np.arange(1, 6)
+        self.price = np.random.choice(self.table, p=[0.1, 0.2, 0.40, 0.2, 0.1],
+                                      size=n_customers)
+        self.punctuality = np.random.choice(self.table, 
+                                            p=[0.03, 0.07, 0.1, 0.3, 0.5],
                                             size=n_customers) # 5 globalement très ponctuel, 1 globalement très en retard
-        self.duration = None
-        self.frequency = None
-        self.overcrowding = np.zeros(n_customers)
+        self.duration = np.random.choice(self.table, p=[0.15, 0.2, 0.30, 0.2, 0.15], size=n_customers)
+        self.frequency = np.random.choice(self.table, p=[0.35, 0.25, 0.2, 0.15, 0.05], 
+                                          size=n_customers)
+        self.overcrowding = np.random.choice(self.table, size=n_customers) # feeling
         self.age = np.random.choice(np.arange(15, 80), size=n_customers)
         self.gender = np.random.choice(['M', 'F'], size=n_customers) # Male, female or other
         self.income = np.zeros(n_customers) # 0 to 1'000'000
@@ -32,40 +35,15 @@ class TrainSatisfactionSimulator:
         self.df = pd.DataFrame(self.data, columns=self.features_names)
         
     def generate_vars(self, n_customers : int):
-        # generate duration
-        duration_table = np.arange(1, 5)
-        len_dur = len(duration_table)
-        p_duration = np.random.normal(2.5, 1, size=len_dur) # moyenne par jour
-        p_duration /= np.sum(p_duration)
-        self.duration = np.random.choice(duration_table, p=p_duration, size=n_customers)
-
         # generate income
-        incomes = np.arange(0, 500000, 1000)
-        p_income = np.random.normal(85702, 2,size=len(incomes))
-        p_income /= np.sum(p_income)
+        incomes = [1000, 50000, 74000, 99000, 200000] # less than 30k, 30k <= x < 60k, 60k <= x < 85k, 85k <= x 100k, x < 100k
         for i in range(n_customers):
-            income = np.random.choice(incomes, p=p_income)
+            income = np.random.choice(incomes, p=[0.05, 0.1, 0.5, 0.25, 0.1])
             if self.age[i] > 35 and income <= 100000:
                 income += 10000
             if self.gender[i] == 'F':
                 income -= income * 0.18
             self.income[i] = income
-
-        # generate price
-        prices = np.arange(1, 5)
-        prices = np.arange(1, 5)
-        p_prices = np.random.normal(2.5, 1,size=len(prices))
-        p_prices /= np.sum(p_prices)
-        self.price = np.random.choice(prices, p=p_prices, size=n_customers)
-        # frequency       
-        freq_table = np.arange(1, 5)
-        len_freq = len(freq_table)
-        p_freq = np.random.normal(2, 1, size=len_freq)
-        p_freq /= np.sum(p_freq)
-        
-        self.frequency = np.random.choice(freq_table, p=p_freq, size=n_customers) # par an (entre 1 et 260)
-        # overcrowding and frequency
-        self.overcrowding = np.random.choice([1, 2, 3, 4, 5], size=n_customers)
           
     def generate_dependent_var(self, n_customers : int):
         pass
@@ -112,22 +90,16 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
     def generate_vars(self, n_customers : int):
         super().generate_vars(n_customers)
         # generate price
-        prices = np.arange(1, 5)
-        len_p = len(prices)
-        p_prices = np.random.normal(2.5, 1,size=len_p)
-        p_prices /= np.sum(p_prices)
-        p_prices_under25 = np.random.exponential(size=len_p)
-        p_prices_under25 /= np.sum(p_prices_under25)
-        p_prices_high_income = np.random.power(5, len_p)
-        p_prices_high_income /= np.sum(p_prices_high_income)
+        prices = np.arange(1, 6)
         for i in range(n_customers):
             if self.income[i] > 100000:
-                self.price[i] = np.random.choice(prices, p=p_prices_high_income)
+                self.price[i] = np.random.choice(prices, 
+                                            p=[0.05, 0.05, 0.3, 0.5, 0.1])
             else:
                 if self.age[i] < 25:
-                    self.price[i] = np.random.choice(prices, p=p_prices_under25)
+                    self.price[i] = np.random.choice(prices, p=[0.2, 0.5, 0.2, 0.09, 0.01])
                 else:
-                    self.price[i] = np.random.choice(prices, p=p_prices)
+                    self.price[i] = np.random.choice(prices, p=[0.1, 0.2, 0.5, 0.1, 0.1])
             if self.duration[i] > 3 and self.price[i] <= 4:
                 self.price[i] += 1
        
@@ -180,10 +152,10 @@ class NoIncomeDependentSatisfaction(ComplexDependentSatisfaction):
     """Simulation Class without income"""
     
     def __init__(self, n_customers):
-        super(TrainSatisfactionSimulator).__init__(n_customers)
-        
+        super(ComplexDependentSatisfaction, self).__init__(n_customers)
+
     def generate_vars(self, n_customers : int):
-        super(TrainSatisfactionSimulator).generate_vars(n_customers)
+        super(ComplexDependentSatisfaction, self).generate_vars(n_customers)
         # generate price
         prices = np.arange(1, 5)
         prices = np.arange(1, 5)
@@ -205,14 +177,6 @@ class NoIncomeDependentSatisfaction(ComplexDependentSatisfaction):
                 self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
             if self.price[i] >= 4 and self.overcrowding[i] > 1:
                 self.overcrowding[i] -= 1
-    
-    def generate_data(self, n_customers):
-        self.generate_vars(n_customers)
-        super().generate_dependent_var(n_customers)
-        return np.array([self.age.astype(int), self.gender, self.remote_working_days.astype(int), self.has_car,
-                         self.price.astype(int), self.punctuality.astype(int), self.duration.astype(int), 
-                         self.frequency.astype(int), self.overcrowding.astype(int), self.satisfaction.astype(int)]).T
-
 
 # Satisfaction depend de la Moyenne pondérée 
 class PondDependentSatisfaction(TrainSatisfactionSimulator):
