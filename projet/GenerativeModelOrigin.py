@@ -85,15 +85,15 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
         
     def generate_dependent_var(self, n_customers):
         data = np.array([self.price, self.punctuality, self.duration, 
-                             self.frequency, self.overcrowding]).T     
+                        self.frequency, self.overcrowding]).T     
         i_price = 1
         i_dur = 0.1
         i_freq = 0.05
         i_punct = 0.9
         i_overcrow = 0.8
-
+        
         n_features = data.shape[1]
-        uniform = 1 / n_features
+        uniform = 1 / n_features # here uniform does not mean that they all have same probability.
         prices = self.price / n_features * uniform
         punctuality = self.punctuality / n_features * uniform
         duration = self.duration / n_features * uniform
