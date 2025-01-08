@@ -64,11 +64,15 @@ class Simulator:
         incomes = [1000, 50000, 74000, 99000, 200000] # less than 30k, 30k <= x < 60k, 60k <= x < 85k, 85k <= x 100k, x < 100k
         for i in range(n_customers):
             income = np.random.choice(incomes, p=[0.05, 0.1, 0.5, 0.25, 0.1])
-            if self.age[i] > 35 and income <= 100000:
+            if self.age[i] < 20:
+                income = np.random.choice(incomes[:2], p=[0.8, 0.2])
+            elif self.age[i] > 35 and income <= 100000:
                 income += 10000
-            if self.gender[i] == 'F':
+            elif self.gender[i] == 'F':
                 income -= income * 0.18
             self.income[i] = income
+        return
+    
     def generate_dependent_var(self, n_customers : int):
         pass
     
@@ -198,6 +202,12 @@ class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
                 self.satisfaction[i] = np.random.choice([0, 1], p=[0.1, 0.9])
         return
     
+    def __repr__(self):
+        return "ComplexDependentSatisfaction"
+    
+    def __str__(self):
+        return "ComplexDependentSatisfaction"
+    
     
 # Simulation sans revenu
 
@@ -245,7 +255,22 @@ class ImpactOnOvercrowding(ComplexDependentSatisfaction):
         self.df = pd.DataFrame(self.data, columns=self.features_names)
         
     def generate_vars(self, n_customers):
-        return super().generate_vars(n_customers)
+        super().generate_vars(n_customers)
+        for i in range(n_customers):
+            if self.income[i] > 50000 and self.income[i] < 75000:
+                self.first_class[i] = np.random.choice([0,1], p=[0.9, 0.1])
+            elif self.income[i] >= 75000 and self.income[i] < 90000:
+                self.first_class[i] = np.random.choice([0,1], p=[0.7, 0.3])
+            elif self.income[i] > 90000 and self.income[i] <= 100000:
+                self.first_class[i] = np.random.choice([0,1], p=[0.4, 0.6])
+            elif self.income[i] > 100000:
+                self.first_class[i] = np.random.choice([0,1], p=[0.2, 0.8])
+            if self.first_class[i]:
+                self.overcrowding[i] = 1
+                if self.price[i] < 5:
+                    self.price[i] += 1
+        
+        return
     
     def generate_dependent_var(self, n_customers):
         return super().generate_dependent_var(n_customers)
@@ -259,6 +284,12 @@ class ImpactOnOvercrowding(ComplexDependentSatisfaction):
                             self.price.astype(int), self.punctuality.astype(int), 
                             self.duration.astype(int), self.frequency.astype(int), 
                             self.overcrowding.astype(int), self.satisfaction.astype(int)]).T
+    
+    def __repr__(self):
+        return "ImpactOnOvercrowding"
+    
+    def __str__(self):
+        return "ImpactOnOvercrowding"
 
 # Satisfaction depend de la Moyenne pondérée 
 class PondDependentSatisfaction(TrainSatisfactionSimulator):
