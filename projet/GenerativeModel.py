@@ -47,10 +47,10 @@ class Simulator:
         self.frequency = np.random.choice(self.table,
                                           p=[0.35, 0.25, 0.2, 0.15, 0.05], size=n_customers)
         self.overcrowding = np.random.choice(self.table, size=n_customers)
-        self.age = np.random.choice(np.arange(15, 80), size=n_customers)
+        self.age = np.random.choice([15, 26, 40, 60, 90], p=[.1, .1, .2, .4, .2] , size=n_customers)
         self.gender = np.random.choice(['M', 'F'], size=n_customers)
         self.income = np.zeros(n_customers)
-        self.remote_working_days = np.random.choice(5, size=n_customers)
+        self.remote_working_days = np.random.choice(6, size=n_customers)
         self.has_car = np.array([np.random.choice(['yes', 'no']) if self.age[i] >= 18 
                                  else 'no' for i in range(n_customers)])
     
@@ -123,6 +123,7 @@ class IndependentSatisfaction(TrainSatisfactionSimulator):
 # Simple example of a satisfaction depending on prices
             
 class SimpleDependentSatisfaction(TrainSatisfactionSimulator):
+    """Simple Simulation were satisfaction depends only on prices"""
     def __init__(self, n_customers):
         super().__init__(n_customers)
         
@@ -138,68 +139,69 @@ class SimpleDependentSatisfaction(TrainSatisfactionSimulator):
 # More complex satisfaction "function"
 
 class ComplexDependentSatisfaction(TrainSatisfactionSimulator):
+    """Complex simulation model with multiple relation between variables.
+        Satisfaction depends on multiple variables.
+    """
     def __init__(self, n_customers):
         super().__init__(n_customers)
         
     def generate_vars(self, n_customers : int):
         super().generate_vars(n_customers)
         # generate price
-        prices = np.arange(1, 6)
+        # prices depend on income, age and duration
         for i in range(n_customers):
             if self.income[i] > 100000:
-                self.price[i] = np.random.choice(prices, 
-                                            p=[0.05, 0.05, 0.3, 0.5, 0.1])
+                self.price[i] = np.random.choice(self.table, 
+                                            p=[0, 0, 0.2, 0.5, 0.3])
             else:
-                if self.age[i] < 25:
-                    self.price[i] = np.random.choice(prices, p=[0.2, 0.5, 0.2, 0.09, 0.01])
+                if self.age[i] < 25 or self.age[i] > 70:
+                    self.price[i] = np.random.choice(self.table, p=[0.2, 0.5, 0.2, 0.1, 0])
                 else:
-                    self.price[i] = np.random.choice(prices, p=[0.1, 0.2, 0.5, 0.1, 0.1])
+                    self.price[i] = np.random.choice(self.table, p=[0.1, 0.2, 0.5, 0.1, 0.1])
             if self.duration[i] > 3 and self.price[i] <= 4:
                 self.price[i] += 1
        
         # overcrowding and frequency
         for i in range(n_customers):
             # frequency
-            if self.remote_working_days[i] > 1 and self.frequency[i] <= 4:
-                self.frequency[i] += 1
-            if self.has_car[i] == 'yes' and self.frequency[i] > 1:
+            if self.remote_working_days[i] > 1 and self.frequency[i] >= 1:
+                self.frequency[i] -= 1
+            if self.has_car[i] == 'yes' and self.frequency[i] >= 1:
                 self.frequency[i] -= 1
             # overcrowding
             if self.punctuality[i] < 3:
-                self.overcrowding[i] = np.random.choice([3, 4, 5])
+                self.overcrowding[i] = np.random.choice([4, 5])
             else:
                 self.overcrowding[i] = np.random.choice([1, 2, 3, 4, 5])
-            if self.price[i] >= 4 and self.overcrowding[i] > 1:
-                self.overcrowding[i] -= 1
         return
    
     def generate_dependent_var(self, n_customers):
-        freq_table = [0.05, 0.1, 0.2, 0.25, 0.5]
-        price_table = [0.1, 0.2, 0.25, 0.5, 1]
-        dur_table = [0.2, 0.25, 0.5, 1, 1]
+        inverse_table = [0.1, 0.2, 0.25, 0.5, 1]
         overcrow_table = [0, -1, -5, -10, -20]
         punct_table = [-5, 0, 5, 10, 15]
         
+        results = []
         for i in range(n_customers):
-            price_impact = 1 / price_table[self.price[i] - 1]
+            price_impact = 1 / inverse_table[self.price[i] - 1]
             punctuality_impact = punct_table[self.punctuality[i] - 1]
-            duration_impact = 1 / dur_table[self.duration[i] - 1]
-            frequency_impact = 1 / freq_table[self.frequency[i] - 1]
+            duration_impact = 1 / (inverse_table[self.duration[i] - 1] * 3)
+            frequency_impact = 1 / (inverse_table[self.frequency[i] - 1] * 2)
             overcrowding_impact = overcrow_table[self.overcrowding[i] - 1]
             
             satisfaction_score = price_impact + punctuality_impact + duration_impact \
                                  + frequency_impact + overcrowding_impact
-            # max satisfaction score possible = 50
-            if satisfaction_score < 0:
-                self.satisfaction[i] = np.random.choice([0, 1], p=[0.95, 0.05])
-            elif satisfaction_score >= 0 and satisfaction_score < 10:
-                self.satisfaction[i] = np.random.choice([0, 1], p=[0.7, 0.3])
-            elif satisfaction_score >= 10 and satisfaction_score < 25:
+            results.append(satisfaction_score)
+            if satisfaction_score < 5:
+                self.satisfaction[i] = 0
+            elif satisfaction_score >= 5 and satisfaction_score < 15:
                 self.satisfaction[i] = np.random.choice([0, 1])
-            elif satisfaction_score >= 25 and satisfaction_score < 40:
-                self.satisfaction[i] = np.random.choice([0, 1], p=[0.3, 0.7])
-            elif satisfaction_score >= 40:
-                self.satisfaction[i] = np.random.choice([0, 1], p=[0.1, 0.9])
+            elif satisfaction_score >= 15:
+                self.satisfaction[i] = 1
+        # DEBUG
+        #print(np.mean(results))
+        #print(np.percentile(results, [25, 50, 75]))
+        #print(f"maximum : {np.max(results)}")
+        #print(f"minimum : {np.min(results)}")
         return
     
     def __repr__(self):
@@ -329,5 +331,10 @@ class PondDependentSatisfaction(TrainSatisfactionSimulator):
 
 # Test       
 if __name__ == "__main__":
-    gen = ComplexDependentSatisfaction(20)
-    print(gen.df)
+    for el in [100, 1000, 10000, 100000]:
+        print(f"ComplexDependentSatisfaction of size = {el}")
+        ComplexDependentSatisfaction(el)
+        print(f"ImpactOnOverrowding of size = {el}")
+        ImpactOnOvercrowding(el)
+        print("------------------------------")
+        
