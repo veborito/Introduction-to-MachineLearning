@@ -1,0 +1,52 @@
+digraph "Passenger Satisfaction" {
+	rankdir=TB size="7,9"
+	node [color=lightblue fontname=Helvetica fontsize=12 shape=box style=filled]
+	S [label=Satisfaction]
+	node [color=lightyellow fontname=Helvetica fontsize=10 shape=ellipse style=filled]
+	P [label=Price]
+	U [label=Punctuality]
+	D [label=Duration]
+	F [label=Frequency]
+	O [label=Overcrowding]
+	node [color=lightgray fontname=Helvetica fontsize=10 shape=ellipse style=dashed]
+	A [label=Age]
+	G [label=Gender]
+	I [label=Income]
+	R [label="Remote Working Days"]
+	C [label="Has a Car"]
+	1 [label="First-Class"]
+	subgraph cluster_independent {
+		color=darkgray fontname=Helvetica fontsize=10 label="Indirect factors" style=rounded
+		A
+		G
+		I
+		R
+		C
+		1
+	}
+	subgraph cluster_factors {
+		color=darkgray fontname=Helvetica fontsize=10 label="Satisfaction Factors" style=rounded
+		P
+		U
+		D
+		F
+		O
+	}
+	P -> S [label="Direct Impact" color=darkgreen penwidth=2]
+	U -> S [color=darkgreen penwidth=2]
+	D -> S [color=darkgreen penwidth=2]
+	F -> S [color=darkgreen penwidth=2]
+	O -> S [color=darkgreen penwidth=2]
+	D -> P [label=Affects color=blue]
+	U -> O [label=Correlates color=blue]
+	A -> P [label=Depends color=purple]
+	C -> F [label=Influences color=purple]
+	G -> I [color=purple]
+	R -> F [color=purple]
+	I -> P [label=Contributes color=red]
+	A -> I [color=red]
+	I -> 1 [color=red]
+	A -> C [color=red]
+	1 -> O [color=red]
+	1 -> P [color=red]
+}
